@@ -1,9 +1,11 @@
 FROM golang:1.26 AS build-env
 
-ADD . /app
-
 WORKDIR /app
 
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
 RUN go build -o api ./cmd/agentapi
 
 

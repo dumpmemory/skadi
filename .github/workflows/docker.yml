@@ -5,45 +5,63 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: read
+
 jobs:
   main:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
-      -
-        name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: actions/checkout@v7
       -
         name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       -
         name: Login to DockerHub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_HUB_NAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       -
+        name: Docker meta for agent api
+        id: api_meta
+        uses: docker/metadata-action@v6
+        with:
+          images: hackfan/skadi-agent-api
+          tags: |
+            type=semver,pattern={{version}}
+      -
         name: Build and push agent api
         id: api_build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./cmd/agentapi/Dockerfile
           push: true
-          tags: hackfan/skadi-agent-api:latest
+          tags: ${{ steps.api_meta.outputs.tags }}
+          labels: ${{ steps.api_meta.outputs.labels }}
+          cache-from: type=gha,scope=agent-api
+          cache-to: type=gha,mode=max,scope=agent-api
+      -
+        name: Docker meta for watcher
+        id: watcher_meta
+        uses: docker/metadata-action@v6
+        with:
+          images: hackfan/skadi-watcher
+          tags: |
+            type=semver,pattern={{version}}
       -
         name: Build and push watcher
         id: watcher_build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./cmd/lonelywatcher/Dockerfile
           push: true
-          tags: hackfan/skadi-watcher:latest
-      -
-        name: Image digest
-        run: |
-          echo ${{ steps.api_build.outputs.digest }}
-          echo ${{ steps.watcher_build.outputs.digest }}
+          tags: ${{ steps.watcher_meta.outputs.tags }}
+          labels: ${{ steps.watcher_meta.outputs.labels }}
+          cache-from: type=gha,scope=watcher
+          cache-to: type=gha,mode=max,scope=watcher
