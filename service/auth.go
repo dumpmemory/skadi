@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/hack-fan/x/xerr"
 	"github.com/labstack/echo/v4"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 
 	"github.com/hack-fan/skadi/types"
@@ -30,7 +30,7 @@ func (s *Service) AuthValidator(key string, c echo.Context) (bool, error) {
 	var aid, uid string
 	// find in redis
 	val, err := s.kv.Get(s.ctx, agentAuthKey(key)).Result()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		// find in db
 		agent := new(types.Agent)
 		err = s.db.First(agent, "secret = ?", key).Error
@@ -50,7 +50,7 @@ func (s *Service) AuthValidator(key string, c echo.Context) (bool, error) {
 		// save in redis
 		err = s.kv.Set(s.ctx, agentAuthKey(key), aid+","+uid, 24*time.Hour).Err()
 		if err != nil {
-			go s.log.Error(err)
+			s.log.Error(err)
 		}
 	} else if err != nil {
 		return false, fmt.Errorf("err read key from redis: %w", err)

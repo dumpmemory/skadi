@@ -1,14 +1,13 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"time"
 	"unicode/utf8"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/hack-fan/x/xerr"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/xid"
 	"github.com/vmihailenco/msgpack/v5"
 	"gorm.io/gorm"
@@ -35,7 +34,7 @@ func (s *Service) AgentAdd(uid string, info *types.AgentBasic) (*types.Agent, er
 	if utf8.RuneCountInString(info.Remark) > 250 {
 		return nil, xerr.New(400, "InvalidRemark", "agent remark must less than 250")
 	}
-	if types.RESERVED.Contains(info.Name) || types.RESERVED.Contains(info.Alias) {
+	if types.IsReserved(info.Name) {
 		return nil, xerr.New(400, "InvalidName", "the name is reserved by system")
 	}
 	_, ok, err := s.FindUserAgentByName(uid, info.Name)
@@ -53,7 +52,7 @@ func (s *Service) AgentAdd(uid string, info *types.AgentBasic) (*types.Agent, er
 		if ok {
 			return nil, xerr.New(400, "InvalidAlias", "the alias is used by your other agent")
 		}
-		if types.RESERVED.Contains(info.Alias) {
+		if types.IsReserved(info.Alias) {
 			return nil, xerr.New(400, "InvalidAlias", "the alias is reserved by system")
 		}
 	}
@@ -154,7 +153,7 @@ func (s *Service) AgentOffline(aid string) {
 		var job = new(types.JobBasic)
 		data, err := s.kv.RPop(s.ctx, agentQueueKey(aid)).Bytes()
 		s.log.Debugw("pop", "data", string(data), "err", err)
-		if err == redis.Nil {
+		if errors.Is(err, redis.Nil) {
 			break
 		} else if err != nil {
 			s.log.Errorf("pop job from queue error: %s", err)
@@ -290,8 +289,8 @@ func (s *Service) AgentUnavailable(aid string) {
 	// secret
 	s.clearAgentAuthCache(agent.Secret)
 	// jobs & online status
-	err = s.kv.Del(context.Background(), agentQueueKey(aid), agentOnlineKey(aid)).Err()
-	if !errors.Is(err, redis.Nil) && err != nil {
+	err = s.kv.Del(s.ctx, agentQueueKey(aid), agentOnlineKey(aid)).Err()
+	if err != nil {
 		s.log.Errorf("delete agent %s jobs and online status when unavailable failed: %s", aid, err)
 		return
 	}

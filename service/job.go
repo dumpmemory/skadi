@@ -1,13 +1,14 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/hack-fan/x/xerr"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/xid"
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -30,7 +31,7 @@ func (s *Service) JobPop(aid string) *types.JobBasic {
 	var job = new(types.JobBasic)
 	data, err := s.kv.RPop(s.ctx, agentQueueKey(aid)).Bytes()
 	s.log.Debugw("pop", "data", string(data), "err", err)
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return nil
 	} else if err != nil {
 		s.log.Errorf("pop job from queue error: %s", err)

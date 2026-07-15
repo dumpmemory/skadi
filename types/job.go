@@ -1,9 +1,8 @@
 package types
 
 import (
+	"slices"
 	"time"
-
-	"github.com/hack-fan/x/xtype"
 )
 
 const (
@@ -16,8 +15,13 @@ const (
 	JobStatusFailed    = "failed"
 )
 
-var RESERVED = xtype.Strings{"agent", "delay", "status", "help", "delay", "group", "plan", "poster",
+var reserved = []string{"agent", "delay", "status", "help", "group", "plan", "poster",
 	"link", "unlink", "follow", "unfollow", "sub", "unsub"}
+
+// IsReserved reports whether the name is reserved by system.
+func IsReserved(name string) bool {
+	return slices.Contains(reserved, name)
+}
 
 // JobBasic will be pulled by agent
 type JobBasic struct {

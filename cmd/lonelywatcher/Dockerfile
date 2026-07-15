@@ -1,4 +1,4 @@
-FROM golang AS build-env
+FROM golang:1.26 AS build-env
 
 ADD . /app
 
@@ -8,7 +8,7 @@ RUN go build -o watcher ./cmd/lonelywatcher
 
 
 # target image
-FROM debian:10-slim
+FROM debian:12-slim
 
 # Install curl and install/updates certificates
 RUN apt-get update \
